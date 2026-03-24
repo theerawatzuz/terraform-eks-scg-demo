@@ -1,0 +1,124 @@
+# Example Terraform Variables Configuration
+# Copy this file to terraform.tfvars and update with your values
+# DO NOT commit terraform.tfvars to version control
+
+# ============================================================================
+# AWS Configuration
+# ============================================================================
+
+# AWS region for infrastructure deployment
+aws_region = "ap-southeast-1"
+
+# AWS CLI profile to use for authentication
+aws_profile = "default"
+
+# ============================================================================
+# EKS Cluster Configuration
+# ============================================================================
+
+# Name of the EKS cluster (lowercase letters, numbers, and hyphens only)
+cluster_name = "my-eks-cluster"
+
+# Kubernetes version for the EKS cluster
+cluster_version = "1.28"
+
+# Environment name (dev, staging, or prod)
+environment = "dev"
+
+# ============================================================================
+# VPC Configuration
+# ============================================================================
+
+# CIDR block for the VPC
+vpc_cidr = "10.0.0.0/16"
+
+# Availability zones for high availability (minimum 2 required)
+availability_zones = ["ap-southeast-1a", "ap-southeast-1b"]
+
+# Public subnet CIDR blocks (one per availability zone)
+public_subnets = ["10.0.1.0/24", "10.0.2.0/24"]
+
+# Private subnet CIDR blocks (one per availability zone)
+private_subnets = ["10.0.11.0/24", "10.0.12.0/24"]
+
+# Use single NAT Gateway for cost optimization (true = single NAT, false = NAT per AZ)
+enable_single_nat_gateway = true
+
+# ============================================================================
+# Node Group Configuration (Cost-Optimized Defaults)
+# ============================================================================
+
+# EC2 instance types for worker nodes
+node_instance_types = ["t3.small"]
+
+# Desired number of worker nodes
+node_desired_size = 1
+
+# Minimum number of worker nodes
+node_min_size = 1
+
+# Maximum number of worker nodes
+node_max_size = 3
+
+# EBS volume size for worker nodes (in GB)
+node_disk_size = 20
+
+# ============================================================================
+# Domain and TLS Configuration
+# ============================================================================
+
+# Domain name managed by Cloudflare
+domain_name = "thebrainsurf.site"
+
+# Cloudflare API token for cert-manager DNS-01 challenge
+# Generate at: https://dash.cloudflare.com/profile/api-tokens
+# Required permissions: Zone:DNS:Edit for the domain
+cloudflare_api_token = "your-cloudflare-api-token-here"
+
+# Email address for Let's Encrypt certificate notifications
+letsencrypt_email = "your-email@example.com"
+
+# ============================================================================
+# Backend Configuration
+# ============================================================================
+
+# S3 bucket name for Terraform state storage (must be globally unique)
+backend_bucket_name = "my-terraform-state-bucket"
+
+# DynamoDB table name for state locking
+backend_dynamodb_table = "my-terraform-state-lock"
+
+# ============================================================================
+# Resource Tagging
+# ============================================================================
+
+# Common tags applied to all resources
+tags = {
+  Environment = "dev"
+  ManagedBy   = "Terraform"
+  Project     = "EKS-Infrastructure"
+  Owner       = "Platform-Team"
+  CostCenter  = "Engineering"
+}
+
+# ============================================================================
+# Optional: Advanced Configuration
+# ============================================================================
+
+# Enable cluster endpoint public access
+cluster_endpoint_public_access = true
+
+# Enable cluster endpoint private access
+cluster_endpoint_private_access = true
+
+# Enable EKS add-ons
+enable_vpc_cni        = true
+enable_coredns        = true
+enable_kube_proxy     = true
+enable_ebs_csi_driver = true
+
+# AWS Load Balancer Controller Helm chart version
+alb_controller_chart_version = "1.6.2"
+
+# cert-manager Helm chart version
+cert_manager_chart_version = "v1.13.2"
