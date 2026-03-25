@@ -30,6 +30,16 @@ locals {
     var.node_desired_size <= var.node_max_size &&
     var.node_max_size >= var.node_min_size
   ) ? true : tobool("ERROR: Invalid node scaling configuration. Ensure: node_min_size >= 1, node_min_size <= node_desired_size <= node_max_size")
+
+  # Common tags applied to all resources
+  common_tags = merge(
+    {
+      ManagedBy   = "Terraform"
+      Environment = var.environment
+      Project     = "EKS-Infrastructure"
+    },
+    var.tags
+  )
 }
 
 # AWS Provider Configuration
@@ -102,7 +112,7 @@ module "vpc" {
   single_nat_gateway = var.enable_single_nat_gateway
   enable_nat_gateway = true
 
-  tags = var.tags
+  tags = local.common_tags
 }
 
 # EKS Module
@@ -129,7 +139,7 @@ module "eks" {
   enable_kube_proxy     = var.enable_kube_proxy
   enable_ebs_csi_driver = var.enable_ebs_csi_driver
 
-  tags = var.tags
+  tags = local.common_tags
 
   depends_on = [module.vpc]
 }
@@ -146,23 +156,9 @@ module "aws_lb_controller" {
 
   chart_version = var.alb_controller_chart_version
 
-  tags = var.tags
+  tags = local.common_tags
 
   depends_on = [module.eks]
 }
 
-# cert-manager Module
-# Deploys cert-manager with Cloudflare DNS-01 solver for TLS certificate management
-module "cert_manager" {
-  source = "./modules/cert-manager"
 
-  cluster_name         = module.eks.cluster_name
-  domain_name          = var.domain_name
-  cloudflare_api_token = var.cloudflare_api_token
-  letsencrypt_email    = var.letsencrypt_email
-  chart_version        = var.cert_manager_chart_version
-
-  tags = var.tags
-
-  depends_on = [module.eks]
-}

@@ -194,25 +194,9 @@ variable "enable_ebs_csi_driver" {
 # ============================================================================
 
 variable "domain_name" {
-  description = "Domain name managed by Cloudflare for TLS certificates"
+  description = "Domain name for TLS certificates (self-signed)"
   type        = string
   default     = "thebrainsurf.site"
-}
-
-variable "cloudflare_api_token" {
-  description = "Cloudflare API token for cert-manager DNS-01 challenge (sensitive)"
-  type        = string
-  sensitive   = true
-}
-
-variable "letsencrypt_email" {
-  description = "Email address for Let's Encrypt certificate notifications"
-  type        = string
-
-  validation {
-    condition     = can(regex("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$", var.letsencrypt_email))
-    error_message = "letsencrypt_email must be a valid email address"
-  }
 }
 
 # ============================================================================
@@ -223,12 +207,6 @@ variable "alb_controller_chart_version" {
   description = "AWS Load Balancer Controller Helm chart version"
   type        = string
   default     = "1.6.2"
-}
-
-variable "cert_manager_chart_version" {
-  description = "cert-manager Helm chart version"
-  type        = string
-  default     = "v1.13.2"
 }
 
 # ============================================================================

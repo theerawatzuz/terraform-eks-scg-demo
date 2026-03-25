@@ -67,16 +67,10 @@ node_disk_size = 20
 # Domain and TLS Configuration
 # ============================================================================
 
-# Domain name managed by Cloudflare
+# Domain name for self-signed TLS certificate
 domain_name = "thebrainsurf.site"
 
-# Cloudflare API token for cert-manager DNS-01 challenge
-# Generate at: https://dash.cloudflare.com/profile/api-tokens
-# Required permissions: Zone:DNS:Edit for the domain
-cloudflare_api_token = "your-cloudflare-api-token-here"
-
-# Email address for Let's Encrypt certificate notifications
-letsencrypt_email = "your-email@example.com"
+# TLS certificates are self-signed - run ./scripts/gen-cert.sh to generate
 
 # ============================================================================
 # Backend Configuration
@@ -119,6 +113,3 @@ enable_ebs_csi_driver = true
 
 # AWS Load Balancer Controller Helm chart version
 alb_controller_chart_version = "1.6.2"
-
-# cert-manager Helm chart version
-cert_manager_chart_version = "v1.13.2"

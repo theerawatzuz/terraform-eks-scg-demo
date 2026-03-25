@@ -1,0 +1,35 @@
+# Example PersistentVolumeClaim using gp3 Storage Class
+# This PVC uses the gp3 storage class created by the EKS module
+# with encryption enabled and WaitForFirstConsumer binding mode
+
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: example-pvc
+  namespace: default
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: gp3
+  resources:
+    requests:
+      storage: 10Gi
+
+---
+# Example Pod using the PVC
+apiVersion: v1
+kind: Pod
+metadata:
+  name: example-pod
+  namespace: default
+spec:
+  containers:
+    - name: example-pod
+      image: nginx:latest
+      volumeMounts:
+        - name: example-volume
+          mountPath: /data
+  volumes:
+    - name: example-volume
+      persistentVolumeClaim:
+        claimName: example-pvc

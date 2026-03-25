@@ -102,20 +102,6 @@ output "alb_controller_service_account" {
 }
 
 # ============================================================================
-# cert-manager Information
-# ============================================================================
-
-output "cert_manager_namespace" {
-  description = "Namespace where cert-manager is installed"
-  value       = module.cert_manager.namespace
-}
-
-output "cert_manager_cluster_issuer" {
-  description = "Name of the ClusterIssuer for Let's Encrypt"
-  value       = module.cert_manager.cluster_issuer_name
-}
-
-# ============================================================================
 # Domain and DNS Configuration
 # ============================================================================
 
@@ -124,25 +110,22 @@ output "domain_name" {
   value       = var.domain_name
 }
 
-output "cloudflare_dns_setup_instructions" {
-  description = "Instructions for configuring Cloudflare DNS records"
+output "tls_setup_instructions" {
+  description = "Instructions for applying self-signed TLS certificate"
   value       = <<-EOT
-    Cloudflare DNS Setup Instructions:
-    
-    1. After deploying an Ingress resource, the AWS Load Balancer Controller will create an ALB
-    2. Get the ALB DNS name from the Ingress:
+    Self-Signed TLS Certificate Setup:
+
+    1. Generate the certificate:
+       ./scripts/gen-cert.sh
+
+    2. Apply the TLS secret to Kubernetes:
+       kubectl apply -f tls-secret.yaml
+
+    3. Get the ALB DNS name after deploying an Ingress:
        kubectl get ingress <ingress-name> -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'
-    
-    3. In Cloudflare dashboard for domain ${var.domain_name}:
-       - Create a CNAME record pointing your subdomain to the ALB DNS name
-       - Example: subdomain.${var.domain_name} -> <alb-dns-name>
-       - Set Proxy status to "DNS only" (gray cloud) for TLS passthrough
-    
-    4. cert-manager will automatically request and manage TLS certificates using DNS-01 challenge
-    
-    5. Verify certificate issuance:
-       kubectl get certificate -A
-       kubectl describe certificate <certificate-name> -n <namespace>
+
+    4. Create a CNAME record in Cloudflare pointing *.${var.domain_name} to the ALB DNS name
+       (Proxy status: DNS only)
   EOT
 }
 
