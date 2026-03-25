@@ -22,7 +22,7 @@
 terraform {
   backend "s3" {
     # S3 bucket for state storage (must be created first using backend module)
-    bucket = "eks-tfstate-thebrainsurf-ap-southeast-1"
+    bucket = "eks-tfstate-thebrainsurf-v2-ap-southeast-1"
 
     # State file path using cluster name for environment isolation
     # Format: eks/${cluster_name}/terraform.tfstate
