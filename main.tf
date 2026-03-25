@@ -162,3 +162,17 @@ module "aws_lb_controller" {
 }
 
 
+
+# External Secrets Operator Module
+# Manages secrets from AWS Secrets Manager
+module "external_secrets" {
+  source = "./modules/external-secrets"
+
+  cluster_name            = module.eks.cluster_name
+  cluster_oidc_issuer_url = module.eks.cluster_oidc_issuer_url
+  oidc_provider_arn       = module.eks.oidc_provider_arn
+
+  tags = local.common_tags
+
+  depends_on = [module.eks]
+}

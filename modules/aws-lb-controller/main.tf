@@ -202,6 +202,37 @@ data "aws_iam_policy_document" "aws_load_balancer_controller" {
   statement {
     effect = "Allow"
     actions = [
+      "elasticloadbalancing:AddTags"
+    ]
+    resources = [
+      "arn:${data.aws_partition.current.partition}:elasticloadbalancing:*:*:targetgroup/*/*"
+    ]
+    condition {
+      test     = "Null"
+      variable = "aws:RequestTag/elbv2.k8s.aws/cluster"
+      values   = ["false"]
+    }
+  }
+
+  statement {
+    effect = "Allow"
+    actions = [
+      "elasticloadbalancing:AddTags"
+    ]
+    resources = [
+      "arn:${data.aws_partition.current.partition}:elasticloadbalancing:*:*:loadbalancer/app/*/*",
+      "arn:${data.aws_partition.current.partition}:elasticloadbalancing:*:*:loadbalancer/net/*/*"
+    ]
+    condition {
+      test     = "Null"
+      variable = "aws:RequestTag/elbv2.k8s.aws/cluster"
+      values   = ["false"]
+    }
+  }
+
+  statement {
+    effect = "Allow"
+    actions = [
       "elasticloadbalancing:AddTags",
       "elasticloadbalancing:RemoveTags"
     ]
