@@ -4,11 +4,13 @@ metadata:
   name: APP_NAME
   namespace: APP_NAME
   annotations:
-    kubernetes.io/ingress.class: alb
-    alb.ingress.kubernetes.io/scheme: internet-facing
-    alb.ingress.kubernetes.io/target-type: ip
-    alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS": 443}]'
+    cert-manager.io/cluster-issuer: letsencrypt-prod
 spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - APP_NAME.thebrainsurf.site
+      secretName: APP_NAME-tls
   rules:
     - host: APP_NAME.thebrainsurf.site
       http:
