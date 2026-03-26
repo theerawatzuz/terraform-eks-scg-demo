@@ -1,0 +1,24 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: weather-map-monitoring
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/theerawatzuz/terraform-eks-scg-demo.git
+    targetRevision: main
+    path: kubernetes/apps/weather-map
+    directory:
+      include: "{servicemonitor.yaml,grafana-dashboard.yaml}"
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: weather-map
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=false

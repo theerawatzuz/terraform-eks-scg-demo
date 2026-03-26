@@ -3,6 +3,8 @@ kind: Service
 metadata:
   name: weather-map-backend
   namespace: weather-map
+  labels:
+    app: weather-map-backend
 spec:
   selector:
     app: weather-map-backend
@@ -10,4 +12,5 @@ spec:
     - protocol: TCP
       port: 80
       targetPort: 3001
+      name: http
   type: ClusterIP
