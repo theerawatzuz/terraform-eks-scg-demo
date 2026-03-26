@@ -8,8 +8,7 @@ metadata:
     argocd-image-updater.argoproj.io/image-list: backend=030635936907.dkr.ecr.ap-southeast-1.amazonaws.com/weather-map-backend
     argocd-image-updater.argoproj.io/backend.update-strategy: latest
     argocd-image-updater.argoproj.io/backend.allow-tags: regexp:^[0-9a-f]{7}$|^latest$
-    argocd-image-updater.argoproj.io/write-back-method: git
-    argocd-image-updater.argoproj.io/git-branch: main
+    argocd-image-updater.argoproj.io/write-back-method: argocd
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
@@ -18,6 +17,9 @@ spec:
     repoURL: https://github.com/theerawatzuz/terraform-eks-scg-demo.git
     targetRevision: main
     path: kubernetes/apps/weather-map/backend
+    kustomize:
+      images:
+        - 030635936907.dkr.ecr.ap-southeast-1.amazonaws.com/weather-map-backend:latest
   destination:
     server: https://kubernetes.default.svc
     namespace: weather-map
@@ -39,8 +41,7 @@ metadata:
     argocd-image-updater.argoproj.io/image-list: frontend=030635936907.dkr.ecr.ap-southeast-1.amazonaws.com/weather-map-frontend
     argocd-image-updater.argoproj.io/frontend.update-strategy: latest
     argocd-image-updater.argoproj.io/frontend.allow-tags: regexp:^[0-9a-f]{7}$|^latest$
-    argocd-image-updater.argoproj.io/write-back-method: git
-    argocd-image-updater.argoproj.io/git-branch: main
+    argocd-image-updater.argoproj.io/write-back-method: argocd
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
@@ -49,6 +50,9 @@ spec:
     repoURL: https://github.com/theerawatzuz/terraform-eks-scg-demo.git
     targetRevision: main
     path: kubernetes/apps/weather-map/frontend
+    kustomize:
+      images:
+        - 030635936907.dkr.ecr.ap-southeast-1.amazonaws.com/weather-map-frontend:latest
   destination:
     server: https://kubernetes.default.svc
     namespace: weather-map
