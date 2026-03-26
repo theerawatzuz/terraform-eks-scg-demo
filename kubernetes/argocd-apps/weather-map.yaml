@@ -4,11 +4,7 @@ metadata:
   name: weather-map-backend
   namespace: argocd
   annotations:
-    # ArgoCD Image Updater configuration
-    argocd-image-updater.argoproj.io/image-list: backend=030635936907.dkr.ecr.ap-southeast-1.amazonaws.com/weather-map-backend
-    argocd-image-updater.argoproj.io/backend.update-strategy: latest
-    argocd-image-updater.argoproj.io/backend.allow-tags: regexp:^[0-9a-f]{7}$|^latest$
-    argocd-image-updater.argoproj.io/write-back-method: argocd
+    # GitHub Actions will update image tags via repository_dispatch
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
@@ -37,11 +33,7 @@ metadata:
   name: weather-map-frontend
   namespace: argocd
   annotations:
-    # ArgoCD Image Updater configuration
-    argocd-image-updater.argoproj.io/image-list: frontend=030635936907.dkr.ecr.ap-southeast-1.amazonaws.com/weather-map-frontend
-    argocd-image-updater.argoproj.io/frontend.update-strategy: latest
-    argocd-image-updater.argoproj.io/frontend.allow-tags: regexp:^[0-9a-f]{7}$|^latest$
-    argocd-image-updater.argoproj.io/write-back-method: argocd
+    # GitHub Actions will update image tags via repository_dispatch
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
