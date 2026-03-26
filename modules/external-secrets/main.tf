@@ -52,3 +52,41 @@ resource "aws_iam_role_policy_attachment" "external_secrets" {
   policy_arn = aws_iam_policy.external_secrets.arn
   role       = aws_iam_role.external_secrets.name
 }
+
+# Install External Secrets Operator via Helm
+resource "helm_release" "external_secrets" {
+  name       = "external-secrets"
+  repository = "https://charts.external-secrets.io"
+  chart      = "external-secrets"
+  version    = "0.9.11"
+  namespace  = "external-secrets-system"
+
+  create_namespace = true
+
+  values = [
+    yamlencode({
+      installCRDs = true
+      serviceAccount = {
+        create = true
+        name   = "external-secrets"
+        annotations = {
+          "eks.amazonaws.com/role-arn" = aws_iam_role.external_secrets.arn
+        }
+      }
+      resources = {
+        requests = {
+          cpu    = "50m"
+          memory = "128Mi"
+        }
+        limits = {
+          cpu    = "200m"
+          memory = "256Mi"
+        }
+      }
+    })
+  ]
+
+  depends_on = [
+    aws_iam_role_policy_attachment.external_secrets
+  ]
+}
