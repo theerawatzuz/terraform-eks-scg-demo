@@ -1,0 +1,211 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: argocd-image-updater
+  namespace: argocd
+  annotations:
+    eks.amazonaws.com/role-arn: "arn:aws:iam::ACCOUNT_ID:role/CLUSTER_NAME-argocd-image-updater"
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: argocd-image-updater
+  namespace: argocd
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - secrets
+      - configmaps
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - argoproj.io
+    resources:
+      - applications
+    verbs:
+      - get
+      - list
+      - update
+      - patch
+  - apiGroups:
+      - ""
+    resources:
+      - events
+    verbs:
+      - create
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: argocd-image-updater
+  namespace: argocd
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: argocd-image-updater
+subjects:
+  - kind: ServiceAccount
+    name: argocd-image-updater
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-image-updater-config
+  namespace: argocd
+data:
+  log.level: info
+  argocd.grpc_web: "true"
+  argocd.server_addr: "argocd-server.argocd"
+  argocd.insecure: "false"
+  argocd.plaintext: "false"
+
+  # Git credentials secret name
+  git.user: "git"
+  git.email: "argocd-image-updater@noreply.local"
+
+  # Registries configuration for ECR
+  registries.conf: |
+    registries:
+    - name: ECR
+      prefix: ACCOUNT_ID.dkr.ecr.ap-southeast-1.amazonaws.com
+      api_url: https://ACCOUNT_ID.dkr.ecr.ap-southeast-1.amazonaws.com
+      credentials: ext:/scripts/ecr-login.sh
+      default: true
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: argocd-image-updater
+  namespace: argocd
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: argocd-image-updater
+  template:
+    metadata:
+      labels:
+        app: argocd-image-updater
+    spec:
+      serviceAccountName: argocd-image-updater
+      containers:
+        - name: argocd-image-updater
+          image: quay.io/argoprojlabs/argocd-image-updater:v0.15.0
+          imagePullPolicy: Always
+          command:
+            - /usr/local/bin/argocd-image-updater
+            - run
+          env:
+            - name: APPLICATIONS_API
+              valueFrom:
+                configMapKeyRef:
+                  name: argocd-image-updater-config
+                  key: applications_api
+                  optional: true
+            - name: ARGOCD_GRPC_WEB
+              valueFrom:
+                configMapKeyRef:
+                  name: argocd-image-updater-config
+                  key: argocd.grpc_web
+                  optional: true
+            - name: ARGOCD_SERVER
+              valueFrom:
+                configMapKeyRef:
+                  name: argocd-image-updater-config
+                  key: argocd.server_addr
+                  optional: true
+            - name: ARGOCD_INSECURE
+              valueFrom:
+                configMapKeyRef:
+                  name: argocd-image-updater-config
+                  key: argocd.insecure
+                  optional: true
+            - name: ARGOCD_PLAINTEXT
+              valueFrom:
+                configMapKeyRef:
+                  name: argocd-image-updater-config
+                  key: argocd.plaintext
+                  optional: true
+            - name: ARGOCD_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: argocd-image-updater-secret
+                  key: argocd.token
+                  optional: true
+            - name: IMAGE_UPDATER_LOGLEVEL
+              valueFrom:
+                configMapKeyRef:
+                  name: argocd-image-updater-config
+                  key: log.level
+                  optional: true
+          ports:
+            - containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 3
+            periodSeconds: 30
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 3
+            periodSeconds: 30
+          volumeMounts:
+            - name: ssh-known-hosts
+              mountPath: /app/config/ssh
+            - name: ssh-config
+              mountPath: /app/.ssh
+            - name: git-creds
+              mountPath: /app/creds
+              readOnly: true
+            - name: ecr-login-script
+              mountPath: /scripts
+              readOnly: true
+      volumes:
+        - name: ssh-known-hosts
+          configMap:
+            name: argocd-ssh-known-hosts-cm
+            optional: true
+        - name: ssh-config
+          configMap:
+            name: argocd-image-updater-ssh-config
+            optional: true
+        - name: git-creds
+          secret:
+            secretName: git-creds
+            optional: true
+        - name: ecr-login-script
+          configMap:
+            name: ecr-login-script
+            defaultMode: 0755
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: argocd-image-updater-secret
+  namespace: argocd
+type: Opaque
+stringData:
+  # ArgoCD token (optional - ใช้ ServiceAccount token แทนได้)
+  # argocd.token: ""
+
+  # Git credentials จะอยู่ใน secret แยก (git-creds)
+  # ดูวิธีสร้างใน kubernetes/apps/argocd-image-updater/SETUP.md
+
+---
+# ECR Login Script for Image Updater
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ecr-login-script
+  namespace: argocd
+data:
+  ecr-login.sh: |
+    #!/bin/sh
+    # ECR login script using IRSA
+    aws ecr get-login-password --region ap-southeast-1

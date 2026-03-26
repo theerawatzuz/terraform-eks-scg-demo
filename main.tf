@@ -209,3 +209,17 @@ module "cluster_autoscaler" {
 
   depends_on = [module.eks]
 }
+
+# ArgoCD Image Updater Module
+# Provides IAM role for ArgoCD Image Updater to access ECR
+module "argocd_image_updater" {
+  source = "./modules/argocd-image-updater"
+
+  cluster_name            = module.eks.cluster_name
+  cluster_oidc_issuer_url = module.eks.cluster_oidc_issuer_url
+  oidc_provider_arn       = module.eks.oidc_provider_arn
+
+  tags = local.common_tags
+
+  depends_on = [module.eks]
+}

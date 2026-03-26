@@ -1,0 +1,24 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: weather-map-frontend
+  namespace: weather-map
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - weather-app.thebrainsurf.site
+      secretName: weather-app-tls
+  rules:
+    - host: weather-app.thebrainsurf.site
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: weather-map-frontend
+                port:
+                  number: 80
