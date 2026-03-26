@@ -23,12 +23,12 @@ Production-ready EKS infrastructure on AWS with cost-optimized configuration, de
 │                          (thebrainsurf.site)                                     │
 │                                                                                  │
 │  DNS Records (CNAME):                                                           │
-│  • *.thebrainsurf.site → ALB DNS Name                                          │
-│  • prometheus.thebrainsurf.site → ALB                                          │
-│  • grafana.thebrainsurf.site → ALB                                             │
-│  • argocd.thebrainsurf.site → ALB                                              │
-│  • weather-app.thebrainsurf.site → ALB                                         │
-│  • weather-api.thebrainsurf.site → ALB                                         │
+│  • *.thebrainsurf.site → NLB DNS Name                                          │
+│  • prometheus.thebrainsurf.site → NLB                                          │
+│  • grafana.thebrainsurf.site → NLB                                             │
+│  • argocd.thebrainsurf.site → NLB                                              │
+│  • weather-app.thebrainsurf.site → NLB                                         │
+│  • weather-api.thebrainsurf.site → NLB                                         │
 └────────────────────────────────────┬────────────────────────────────────────────┘
                                      │
                                      │ DNS Resolution
@@ -38,15 +38,15 @@ Production-ready EKS infrastructure on AWS with cost-optimized configuration, de
 │                              ap-southeast-1                                      │
 │                                                                                  │
 │  ┌────────────────────────────────────────────────────────────────────────────┐ │
-│  │                         APPLICATION LOAD BALANCER (ALB)                    │ │
-│  │              (Created by AWS Load Balancer Controller)                     │ │
+│  │                         NETWORK LOAD BALANCER (NLB)                        │ │
+│  │              (Created by Nginx Ingress Controller)                         │ │
 │  │                                                                            │ │
-│  │  • Type: Application Load Balancer (ALB)                                  │ │
+│  │  • Type: Network Load Balancer (NLB)                                      │ │
 │  │  • Scheme: internet-facing                                                │ │
-│  │  • Target Type: IP (direct to pods)                                       │ │
-│  │  • Health Check: HTTP /healthz:10254                                      │ │
-│  │  • Listener: 80 (HTTP only - TLS at Nginx)                               │ │
-│  │  • DNS: k8s-ingressn-nginxing-f2e4afe79e-*.elb.amazonaws.com             │ │
+│  │  • Target Type: Instance (NodePort)                                       │ │
+│  │  • Listener: 80 (HTTP), 443 (HTTPS)                                      │ │
+│  │  • TLS Termination: At Nginx Ingress (not at NLB)                        │ │
+│  │  • DNS: *.elb.ap-southeast-1.amazonaws.com                               │ │
 │  └──────────────────────────────────┬─────────────────────────────────────────┘ │
 │                                     │                                            │
 │                                     │ Forward Traffic                            │
@@ -117,8 +117,8 @@ User Request
 Cloudflare DNS (thebrainsurf.site)
     │
     ▼
-Application Load Balancer (ALB)
-    │ (HTTP - Port 80)
+Network Load Balancer (NLB)
+    │ (TCP - Port 80/443)
     ▼
 Nginx Ingress Controller (TLS Termination with cert-manager)
     │
@@ -160,19 +160,19 @@ cert-manager
 1. **Single NAT Gateway**: Shared across all AZs (~$32/month savings)
 2. **t3.small Instances**: Right-sized for workload (min=1, max=8)
 3. **Cluster Autoscaler**: Auto-scale nodes based on demand
-4. **Single ALB**: One ALB for all applications via Nginx (~$16/month for ALB)
+4. **NLB with Nginx**: Single NLB for all applications (~$16/month for NLB)
 5. **gp3 Volumes**: Cost-effective storage with better performance
 6. **No Control Plane Logging**: Disabled for cost savings
 7. **Minimal Resource Requests**: Optimized CPU/memory for all pods
 8. **Auto Scale-Down**: Remove underutilized nodes after 10 minutes
 9. **HPA for Applications**: Scale pods based on CPU/memory (backend: 2-10, frontend: 1-5)
-10. **NodePort Service**: Nginx uses NodePort instead of LoadBalancer (saves ~$16/month)
+10. **LoadBalancer Service**: Nginx uses LoadBalancer type with NLB
 
 **Estimated Monthly Cost**: ~$150-200 (scales with load)
 
 - EKS Control Plane: $73/month
 - EC2 Nodes (t3.small): ~$15-60/month (1-4 nodes)
-- ALB: ~$16/month
+- NLB: ~$16/month
 - NAT Gateway: ~$32/month
 - EBS Volumes (gp3): ~$10-20/month
 - Data Transfer: ~$5-10/month
@@ -284,15 +284,15 @@ kubectl get pods -A
 
 ### Cloudflare DNS Setup
 
-1. After deploying an Ingress, get the ALB DNS name:
+1. After deploying Nginx Ingress, get the NLB DNS name:
 
    ```bash
-   kubectl get ingress <ingress-name> -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'
+   kubectl get svc -n ingress-nginx ingress-nginx-controller -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'
    ```
 
 2. In Cloudflare dashboard, create a CNAME record:
    - Name: `subdomain` (e.g., `app`)
-   - Content: ALB DNS name
+   - Content: NLB DNS name
    - Proxy status: DNS only (gray cloud)
 
 3. cert-manager will automatically request TLS certificates using DNS-01 challenge.
@@ -318,8 +318,8 @@ aws eks describe-node-group --cluster-name <cluster-name> --node-group-name <nod
 # Check cert-manager logs
 kubectl logs -n cert-manager -l app.kubernetes.io/name=cert-manager
 
-# Check ALB controller logs
-kubectl logs -n kube-system -l app.kubernetes.io/name=aws-load-balancer-controller
+# Check Nginx Ingress logs
+kubectl logs -n ingress-nginx -l app.kubernetes.io/name=ingress-nginx
 ```
 
 ## Module Structure
