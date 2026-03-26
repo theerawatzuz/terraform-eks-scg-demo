@@ -127,11 +127,13 @@ output "cert_manager_namespace" {
 output "cert_manager_setup_instructions" {
   description = "Instructions for completing cert-manager setup"
   value       = module.cert_manager.setup_instructions
+  sensitive   = true
 }
 
 output "clusterissuer_ready" {
   description = "Whether ClusterIssuer is ready to use"
   value       = module.cert_manager.clusterissuer_created
+  sensitive   = true
 }
 
 # ============================================================================
@@ -202,5 +204,36 @@ output "cost_optimization_summary" {
     - Scale down nodes during off-hours
     - Use Spot instances for non-production workloads
     - Monitor and right-size node instance types based on actual usage
+  EOT
+}
+
+# Cluster Autoscaler Outputs
+output "cluster_autoscaler_role_arn" {
+  description = "IAM role ARN for Cluster Autoscaler"
+  value       = module.cluster_autoscaler.iam_role_arn
+}
+
+output "cluster_autoscaler_service_account" {
+  description = "Service account name for Cluster Autoscaler"
+  value       = "${module.cluster_autoscaler.namespace}/${module.cluster_autoscaler.service_account_name}"
+}
+
+output "autoscaling_configuration" {
+  description = "Node autoscaling configuration"
+  value = <<-EOT
+    Cluster Autoscaler Configuration:
+    
+    - Min Nodes: ${var.node_min_size}
+    - Desired Nodes: ${var.node_desired_size}
+    - Max Nodes: ${var.node_max_size}
+    - Scale Down Delay: 10 minutes after scale up
+    - Scale Down Threshold: 50% utilization
+    - Auto-Discovery: Enabled
+    
+    Monitor autoscaling:
+    kubectl logs -f deployment/cluster-autoscaler -n kube-system
+    
+    Check scaling events:
+    kubectl get events -n kube-system --sort-by='.lastTimestamp' | grep cluster-autoscaler
   EOT
 }

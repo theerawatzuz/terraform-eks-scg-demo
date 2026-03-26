@@ -76,11 +76,11 @@ provider "kubernetes" {
 # This provider connects to the EKS cluster using AWS CLI authentication
 # Note: This configuration will be functional after the EKS cluster is created
 provider "helm" {
-  kubernetes = {
+  kubernetes {
     host                   = try(module.eks.cluster_endpoint, "")
     cluster_ca_certificate = try(base64decode(module.eks.cluster_certificate_authority_data), "")
 
-    exec = {
+    exec {
       api_version = "client.authentication.k8s.io/v1beta1"
       command     = "aws"
       args = [
@@ -188,6 +188,22 @@ module "external_secrets" {
   cluster_name            = module.eks.cluster_name
   cluster_oidc_issuer_url = module.eks.cluster_oidc_issuer_url
   oidc_provider_arn       = module.eks.oidc_provider_arn
+
+  tags = local.common_tags
+
+  depends_on = [module.eks]
+}
+
+# Cluster Autoscaler Module
+# Automatically scales EKS nodes based on pod resource requests
+module "cluster_autoscaler" {
+  source = "./modules/cluster-autoscaler"
+
+  cluster_name            = module.eks.cluster_name
+  cluster_oidc_issuer_url = module.eks.cluster_oidc_issuer_url
+  oidc_provider_arn       = module.eks.oidc_provider_arn
+
+  namespace = "kube-system"
 
   tags = local.common_tags
 
