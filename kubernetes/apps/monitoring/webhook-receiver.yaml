@@ -100,7 +100,7 @@ spec:
             - /bin/bash
             - -c
             - |
-              pip install flask gunicorn
+              pip install flask gunicorn requests
               gunicorn -w 2 -b 0.0.0.0:8080 webhook-receiver:app
           ports:
             - containerPort: 8080
