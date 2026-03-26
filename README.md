@@ -1,40 +1,230 @@
 # EKS Terraform Infrastructure
 
-Production-ready, cost-optimized Amazon EKS infrastructure deployed using Terraform in the ap-southeast-1 (Bangkok) region.
+Production-ready, cost-optimized Amazon EKS infrastructure deployed using Terraform in the ap-southeast-1 (Singapore) region.
 
 ## Overview
 
-This infrastructure provides:
+Production-ready EKS infrastructure on AWS with cost-optimized configuration, deployed in ap-southeast-1 region.
 
-- **VPC Networking**: Isolated network with public and private subnets across multiple availability zones
-- **EKS Cluster**: Managed Kubernetes cluster with t3.small nodes (min=1, max=3)
-- **AWS Load Balancer Controller**: Automatic ALB provisioning for Kubernetes Ingress resources
-- **cert-manager**: Automatic TLS certificate management with Let's Encrypt and Cloudflare DNS-01 challenge
-- **EBS CSI Driver**: Persistent storage using gp3 volumes
-- **Remote State**: S3 backend with DynamoDB locking for team collaboration
+---
 
-### Architecture
+## 🏗️ Complete Infrastructure Architecture
 
 ```
-Cloudflare DNS
-     |
-     v
-Application Load Balancer (TLS Passthrough)
-     |
-     v
-EKS Cluster (ap-southeast-1)
-     |
-     +-- VPC (10.0.0.0/16)
-     |    +-- Public Subnets (AZ-A, AZ-B)
-     |    +-- Private Subnets (AZ-A, AZ-B)
-     |    +-- NAT Gateway (single for cost optimization)
-     |
-     +-- Node Group (t3.small, min=1, max=3)
-     |
-     +-- Add-ons: VPC CNI, CoreDNS, kube-proxy, EBS CSI
-     |
-     +-- cert-manager (Let's Encrypt + Cloudflare DNS-01)
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                                    INTERNET                                      │
+│                                  (Users/Traffic)                                 │
+└────────────────────────────────────┬────────────────────────────────────────────┘
+                                     │
+                                     │ HTTPS/HTTP
+                                     ▼
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                              CLOUDFLARE DNS                                      │
+│                          (thebrainsurf.site)                                     │
+│                                                                                  │
+│  DNS Records (CNAME):                                                           │
+│  • *.thebrainsurf.site → ALB DNS Name                                          │
+│  • prometheus.thebrainsurf.site → ALB                                          │
+│  • grafana.thebrainsurf.site → ALB                                             │
+│  • argocd.thebrainsurf.site → ALB                                              │
+│  • weather-app.thebrainsurf.site → ALB                                         │
+│  • weather-api.thebrainsurf.site → ALB                                         │
+└────────────────────────────────────┬────────────────────────────────────────────┘
+                                     │
+                                     │ DNS Resolution
+                                     ▼
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                                AWS REGION                                        │
+│                              ap-southeast-1                                      │
+│                                                                                  │
+│  ┌────────────────────────────────────────────────────────────────────────────┐ │
+│  │                         APPLICATION LOAD BALANCER (ALB)                    │ │
+│  │              (Created by AWS Load Balancer Controller)                     │ │
+│  │                                                                            │ │
+│  │  • Type: Application Load Balancer (ALB)                                  │ │
+│  │  • Scheme: internet-facing                                                │ │
+│  │  • Target Type: IP (direct to pods)                                       │ │
+│  │  • Health Check: HTTP /healthz:10254                                      │ │
+│  │  • Listener: 80 (HTTP only - TLS at Nginx)                               │ │
+│  │  • DNS: k8s-ingressn-nginxing-f2e4afe79e-*.elb.amazonaws.com             │ │
+│  └──────────────────────────────────┬─────────────────────────────────────────┘ │
+│                                     │                                            │
+│                                     │ Forward Traffic                            │
+│                                     ▼                                            │
+│  ┌────────────────────────────────────────────────────────────────────────────┐ │
+│  │                          VPC (10.0.0.0/16)                                 │ │
+│  │                                                                            │ │
+│  │  ┌──────────────────────────────────────────────────────────────────────┐ │ │
+│  │  │                    AVAILABILITY ZONE A                                │ │ │
+│  │  │                                                                       │ │ │
+│  │  │  ┌─────────────────────────────────────────────────────────────────┐ │ │ │
+│  │  │  │  Public Subnet (10.0.0.0/24)                                    │ │ │ │
+│  │  │  │                                                                 │ │ │ │
+│  │  │  │  ┌──────────────────┐                                          │ │ │ │
+│  │  │  │  │  NAT Gateway     │ ← Elastic IP                            │ │ │ │
+│  │  │  │  │  (Single NAT)    │                                          │ │ │ │
+│  │  │  │  └────────┬─────────┘                                          │ │ │ │
+│  │  │  │           │                                                     │ │ │ │
+│  │  │  │           │ Internet Gateway                                    │ │ │ │
+│  │  │  └───────────┼─────────────────────────────────────────────────────┘ │ │ │
+│  │  │              │                                                       │ │ │
+│  │  │  ┌───────────▼───────────────────────────────────────────────────┐ │ │ │
+│  │  │  │  Private Subnet (10.0.10.0/24)                                │ │ │ │
+│  │  │  │                                                               │ │ │ │
+│  │  │  │  ┌─────────────────────────────────────────────────────────┐ │ │ │ │
+│  │  │  │  │         EKS CLUSTER (Kubernetes 1.32)                   │ │ │ │ │
+│  │  │  │  │                                                         │ │ │ │ │
+│  │  │  │  │  ┌───────────────────────────────────────────────────┐ │ │ │ │ │
+│  │  │  │  │  │  Managed Node Group                               │ │ │ │ │ │
+│  │  │  │  │  │  • Instance Type: t3.small                        │ │ │ │ │ │
+│  │  │  │  │  │  • Min: 1, Desired: 1, Max: 8                     │ │ │ │ │ │
+│  │  │  │  │  │  • Disk: 20GB gp3 (encrypted)                     │ │ │ │ │ │
+│  │  │  │  │  │  • IMDSv2: Required                               │ │ │ │ │ │
+│  │  │  │  │  │                                                   │ │ │ │ │ │
+│  │  │  │  │  │  Components:                                      │ │ │ │ │ │
+│  │  │  │  │  │  • Nginx Ingress (TLS Termination)                │ │ │ │ │ │
+│  │  │  │  │  │  • cert-manager (Let's Encrypt)                   │ │ │ │ │ │
+│  │  │  │  │  │  • ArgoCD (GitOps)                                │ │ │ │ │ │
+│  │  │  │  │  │  • Prometheus + Grafana (Monitoring)              │ │ │ │ │ │
+│  │  │  │  │  │  • Loki + Promtail (Logging)                      │ │ │ │ │ │
+│  │  │  │  │  │  • Tempo (Tracing)                                │ │ │ │ │ │
+│  │  │  │  │  │  • External Secrets Operator                      │ │ │ │ │ │
+│  │  │  │  │  │  • Cluster Autoscaler                             │ │ │ │ │ │
+│  │  │  │  │  │  • EBS CSI Driver                                 │ │ │ │ │ │
+│  │  │  │  │  └───────────────────────────────────────────────────┘ │ │ │ │ │
+│  │  │  │  └─────────────────────────────────────────────────────────┘ │ │ │ │
+│  │  │  └───────────────────────────────────────────────────────────────┘ │ │ │
+│  │  └──────────────────────────────────────────────────────────────────────┘ │ │
+│  │                                                                            │ │
+│  │  ┌──────────────────────────────────────────────────────────────────────┐ │ │
+│  │  │                    AVAILABILITY ZONE B                                │ │ │
+│  │  │  • Public Subnet (10.0.1.0/24)                                        │ │ │
+│  │  │  • Private Subnet (10.0.11.0/24)                                      │ │ │
+│  │  │  • EKS Worker Nodes (distributed across AZs)                          │ │ │
+│  │  └──────────────────────────────────────────────────────────────────────┘ │ │
+│  └────────────────────────────────────────────────────────────────────────────┘ │
+└──────────────────────────────────────────────────────────────────────────────────┘
 ```
+
+---
+
+## 📊 Traffic Flow
+
+```
+User Request
+    │
+    ▼
+Cloudflare DNS (thebrainsurf.site)
+    │
+    ▼
+Application Load Balancer (ALB)
+    │ (HTTP - Port 80)
+    ▼
+Nginx Ingress Controller (TLS Termination with cert-manager)
+    │
+    ├─► Prometheus (prometheus.thebrainsurf.site)
+    ├─► Grafana (grafana.thebrainsurf.site)
+    ├─► ArgoCD (argocd.thebrainsurf.site)
+    ├─► Weather App Frontend (weather-app.thebrainsurf.site)
+    └─► Weather API Backend (weather-api.thebrainsurf.site)
+```
+
+---
+
+## 🔐 Certificate Management Flow
+
+```
+cert-manager
+    │
+    ├─► Let's Encrypt (ACME)
+    │       │
+    │       ▼
+    │   DNS-01 Challenge
+    │       │
+    │       ▼
+    │   Cloudflare API
+    │       │
+    │       ▼
+    │   Certificate Issued
+    │
+    └─► Kubernetes Secret (TLS)
+            │
+            ▼
+        Nginx Ingress (TLS Termination)
+```
+
+---
+
+## 💰 Cost Optimization Features
+
+1. **Single NAT Gateway**: Shared across all AZs (~$32/month savings)
+2. **t3.small Instances**: Right-sized for workload (min=1, max=8)
+3. **Cluster Autoscaler**: Auto-scale nodes based on demand
+4. **Single ALB**: One ALB for all applications via Nginx (~$16/month for ALB)
+5. **gp3 Volumes**: Cost-effective storage with better performance
+6. **No Control Plane Logging**: Disabled for cost savings
+7. **Minimal Resource Requests**: Optimized CPU/memory for all pods
+8. **Auto Scale-Down**: Remove underutilized nodes after 10 minutes
+9. **HPA for Applications**: Scale pods based on CPU/memory (backend: 2-10, frontend: 1-5)
+10. **NodePort Service**: Nginx uses NodePort instead of LoadBalancer (saves ~$16/month)
+
+**Estimated Monthly Cost**: ~$150-200 (scales with load)
+
+- EKS Control Plane: $73/month
+- EC2 Nodes (t3.small): ~$15-60/month (1-4 nodes)
+- ALB: ~$16/month
+- NAT Gateway: ~$32/month
+- EBS Volumes (gp3): ~$10-20/month
+- Data Transfer: ~$5-10/month
+
+---
+
+## 🎯 Key Features
+
+### High Availability
+
+- Multi-AZ deployment (2 availability zones)
+- Auto-scaling node group (1-8 nodes)
+- Cluster Autoscaler for dynamic scaling
+- Distributed workload across AZs
+
+### Security
+
+- Private subnets for EKS nodes
+- IMDSv2 required for enhanced security
+- Encrypted EBS volumes (gp3)
+- IRSA for fine-grained IAM permissions
+- Security groups for cluster isolation
+- TLS certificates from Let's Encrypt
+
+### Observability
+
+- **Prometheus**: Metrics collection and alerting
+- **Grafana**: Visualization and dashboards
+- **Loki**: Log aggregation
+- **Promtail**: Log collection from all pods
+- **Tempo**: Distributed tracing
+
+### GitOps
+
+- **ArgoCD**: Continuous deployment
+- Auto-sync and self-healing
+- Declarative application management
+- Git as single source of truth
+
+---
+
+## 🌐 Accessible URLs
+
+| Service          | URL                                   | Status     | TLS      |
+| ---------------- | ------------------------------------- | ---------- | -------- |
+| Prometheus       | https://prometheus.thebrainsurf.site  | ✅ Running | ✅ Valid |
+| Grafana          | https://grafana.thebrainsurf.site     | ✅ Running | ✅ Valid |
+| ArgoCD           | https://argocd.thebrainsurf.site      | ✅ Running | ✅ Valid |
+| Weather Frontend | https://weather-app.thebrainsurf.site | ✅ Running | ✅ Valid |
+| Weather Backend  | https://weather-api.thebrainsurf.site | ✅ Running | ✅ Valid |
+
+---
 
 ## Prerequisites
 
@@ -68,19 +258,6 @@ Copy the example variables file and update with your values:
 
 ```bash
 cp terraform.tfvars.example terraform.tfvars
-```
-
-Or use environment-specific configurations:
-
-```bash
-# Development
-cp environments/dev/terraform.tfvars terraform.tfvars
-
-# Staging
-cp environments/staging/terraform.tfvars terraform.tfvars
-
-# Production
-cp environments/prod/terraform.tfvars terraform.tfvars
 ```
 
 ### 4. Plan and Apply
@@ -119,18 +296,6 @@ kubectl get pods -A
    - Proxy status: DNS only (gray cloud)
 
 3. cert-manager will automatically request TLS certificates using DNS-01 challenge.
-
-## Cost Optimization
-
-This configuration uses cost-optimized settings:
-
-- **NAT Gateway**: Single NAT Gateway (saves ~$32/month per additional NAT)
-- **Node Instance Type**: t3.small (2 vCPU, 2GB RAM)
-- **Node Count**: Min=1, Desired=1, Max=3
-- **Node Storage**: 20GB gp3 volumes
-- **Control Plane Logging**: Disabled
-
-**Estimated Monthly Cost**: $150-166
 
 ## Troubleshooting
 
@@ -173,10 +338,10 @@ kubectl logs -n kube-system -l app.kubernetes.io/name=aws-load-balancer-controll
 │   ├── aws-lb-controller/      # ALB controller module
 │   ├── cert-manager/           # cert-manager module
 │   └── backend/                # Backend state infrastructure
-└── environments/
-    ├── dev/                    # Development configuration
-    ├── staging/                # Staging configuration
-    └── prod/                   # Production configuration
+└── kubernetes/
+    ├── apps/                   # Application manifests
+    ├── argocd-apps/            # ArgoCD Application definitions
+    └── bootstrap/              # Bootstrap resources
 ```
 
 ## Requirements
