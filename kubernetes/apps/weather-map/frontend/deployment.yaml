@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: frontend
-          image: 030635936907.dkr.ecr.ap-southeast-1.amazonaws.com/weather-map-frontend:latest
+          image: 208107894265.dkr.ecr.ap-southeast-1.amazonaws.com/weather-map-frontend:prod-20260326-135214
           ports:
             - containerPort: 80
           envFrom:
