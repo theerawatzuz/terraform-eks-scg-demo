@@ -171,6 +171,19 @@ Production-ready EKS infrastructure on AWS with cost-optimized configuration, de
 │  │  │  │  │  │  └───────────────────────────────────────────────┘ │ │ │ │ │ │
 │  │  │  │  │  │                                                   │ │ │ │ │ │
 │  │  │  │  │  │  ┌───────────────────────────────────────────────┐ │ │ │ │ │ │
+│  │  │  │  │  │  │  AUTOSCALING                                  │ │ │ │ │ │ │
+│  │  │  │  │  │  │                                               │ │ │ │ │ │ │
+│  │  │  │  │  │  │  ┌────────────────────────────────────────┐  │ │ │ │ │ │ │
+│  │  │  │  │  │  │  │  Cluster Autoscaler                    │  │ │ │ │ │ │ │
+│  │  │  │  │  │  │  │  Namespace: kube-system                │  │ │ │ │ │ │ │
+│  │  │  │  │  │  │  │  • Auto-scale nodes (1-8)              │  │ │ │ │ │ │ │
+│  │  │  │  │  │  │  │  • Scale down threshold: 50%           │  │ │ │ │ │ │ │
+│  │  │  │  │  │  │  │  • Cooldown: 10 minutes                │  │ │ │ │ │ │ │
+│  │  │  │  │  │  │  │  • IRSA for ASG permissions            │  │ │ │ │ │ │ │
+│  │  │  │  │  │  │  └────────────────────────────────────────┘  │ │ │ │ │ │ │
+│  │  │  │  │  │  └───────────────────────────────────────────────┘ │ │ │ │ │ │
+│  │  │  │  │  │                                                   │ │ │ │ │ │
+│  │  │  │  │  │  ┌───────────────────────────────────────────────┐ │ │ │ │ │ │
 │  │  │  │  │  │  │  CORE ADD-ONS                                 │ │ │ │ │ │ │
 │  │  │  │  │  │  │  • vpc-cni (Pod Networking)                   │ │ │ │ │ │ │
 │  │  │  │  │  │  │  • coredns (DNS Resolution)                   │ │ │ │ │ │ │
@@ -204,6 +217,7 @@ Production-ready EKS infrastructure on AWS with cost-optimized configuration, de
 │  │  • Node Group Role (Worker, CNI, Registry, SSM policies)                  │ │
 │  │  • EBS CSI Driver Role (Volume management permissions)                    │ │
 │  │  • External Secrets Role (Secrets Manager access)                         │ │
+│  │  • Cluster Autoscaler Role (Auto Scaling Group permissions)               │ │
 │  │  • Security Groups (Cluster communication)                                │ │
 │  │  • IMDSv2 Required (Enhanced security)                                    │ │
 │  └────────────────────────────────────────────────────────────────────────────┘ │
@@ -269,13 +283,15 @@ cert-manager
 ## 💰 Cost Optimization Features
 
 1. **Single NAT Gateway**: Shared across all AZs (~$32/month savings)
-2. **t3.small Instances**: Right-sized for workload (min=1, max=3)
-3. **Single ALB**: One NLB for all applications via Nginx (~$80-100/month savings)
-4. **gp3 Volumes**: Cost-effective storage with better performance
-5. **No Control Plane Logging**: Disabled for cost savings
-6. **Minimal Resource Requests**: Optimized CPU/memory for all pods
+2. **t3.small Instances**: Right-sized for workload (min=1, max=8)
+3. **Cluster Autoscaler**: Auto-scale nodes based on demand
+4. **Single ALB**: One NLB for all applications via Nginx (~$80-100/month savings)
+5. **gp3 Volumes**: Cost-effective storage with better performance
+6. **No Control Plane Logging**: Disabled for cost savings
+7. **Minimal Resource Requests**: Optimized CPU/memory for all pods
+8. **Auto Scale-Down**: Remove underutilized nodes after 10 minutes
 
-**Estimated Monthly Cost**: ~$150-200 (vs $400-500 with multiple ALBs)
+**Estimated Monthly Cost**: ~$150-250 (scales with load, vs $400-500 with multiple ALBs and fixed nodes)
 
 ---
 
@@ -284,7 +300,8 @@ cert-manager
 ### High Availability
 
 - Multi-AZ deployment (2 availability zones)
-- Auto-scaling node group (1-3 nodes)
+- Auto-scaling node group (1-8 nodes)
+- Cluster Autoscaler for dynamic scaling
 - Nginx Ingress with 2-3 replicas
 - Distributed workload across AZs
 
@@ -335,9 +352,10 @@ cert-manager
 
 - VPC with public/private subnets
 - EKS cluster (Kubernetes 1.28)
-- Managed node group
+- Managed node group (auto-scaling 1-8 nodes)
 - Nginx Ingress Controller
 - cert-manager
+- Cluster Autoscaler
 - External Secrets Operator
 - IAM roles and policies
 - Security groups
@@ -388,4 +406,6 @@ All services use:
 - **Domain**: thebrainsurf.site (Cloudflare)
 - **Kubernetes Version**: 1.28
 - **Node Type**: t3.small
+- **Node Scaling**: Min=1, Desired=3, Max=8
+- **Autoscaling**: Cluster Autoscaler enabled
 - **Storage**: gp3 (encrypted)
