@@ -200,13 +200,35 @@ variable "domain_name" {
 }
 
 # ============================================================================
-# Helm Chart Versions
+# Nginx Ingress Controller Configuration
 # ============================================================================
 
-variable "alb_controller_chart_version" {
-  description = "AWS Load Balancer Controller Helm chart version"
+variable "nginx_replica_count" {
+  description = "Number of Nginx Ingress Controller replicas for high availability"
+  type        = number
+  default     = 2
+
+  validation {
+    condition     = var.nginx_replica_count >= 1 && var.nginx_replica_count <= 5
+    error_message = "nginx_replica_count must be between 1 and 5"
+  }
+}
+
+# ============================================================================
+# cert-manager Configuration
+# ============================================================================
+
+variable "cloudflare_api_token" {
+  description = "Cloudflare API token for DNS-01 challenge (optional, can be set later via Kubernetes secret)"
   type        = string
-  default     = "1.6.2"
+  default     = ""
+  sensitive   = true
+}
+
+variable "letsencrypt_email" {
+  description = "Email address for Let's Encrypt certificate notifications"
+  type        = string
+  default     = "admin@thebrainsurf.site"
 }
 
 # ============================================================================

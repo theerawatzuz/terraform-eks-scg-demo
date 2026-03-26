@@ -76,11 +76,11 @@ provider "kubernetes" {
 # This provider connects to the EKS cluster using AWS CLI authentication
 # Note: This configuration will be functional after the EKS cluster is created
 provider "helm" {
-  kubernetes {
+  kubernetes = {
     host                   = try(module.eks.cluster_endpoint, "")
     cluster_ca_certificate = try(base64decode(module.eks.cluster_certificate_authority_data), "")
 
-    exec {
+    exec = {
       api_version = "client.authentication.k8s.io/v1beta1"
       command     = "aws"
       args = [
@@ -144,24 +144,41 @@ module "eks" {
   depends_on = [module.vpc]
 }
 
-# AWS Load Balancer Controller Module
-# Deploys AWS Load Balancer Controller with IRSA for ALB management
-module "aws_lb_controller" {
-  source = "./modules/aws-lb-controller"
+# Nginx Ingress Controller Module
+# Deploys Nginx Ingress Controller with ALB for application routing
+module "nginx_ingress" {
+  source = "./modules/nginx-ingress"
 
-  cluster_name            = module.eks.cluster_name
-  cluster_oidc_issuer_url = module.eks.cluster_oidc_issuer_url
-  oidc_provider_arn       = module.eks.oidc_provider_arn
-  vpc_id                  = module.vpc.vpc_id
+  cluster_name                       = module.eks.cluster_name
+  cluster_endpoint                   = module.eks.cluster_endpoint
+  cluster_certificate_authority_data = module.eks.cluster_certificate_authority_data
 
-  chart_version = var.alb_controller_chart_version
+  replica_count = var.nginx_replica_count
+  namespace     = "ingress-nginx"
 
   tags = local.common_tags
 
   depends_on = [module.eks]
 }
 
+# cert-manager Module
+# Manages TLS certificates with Let's Encrypt and Cloudflare DNS-01
+module "cert_manager" {
+  source = "./modules/cert-manager"
 
+  cluster_name                       = module.eks.cluster_name
+  cluster_endpoint                   = module.eks.cluster_endpoint
+  cluster_certificate_authority_data = module.eks.cluster_certificate_authority_data
+
+  namespace            = "cert-manager"
+  domain_name          = var.domain_name
+  cloudflare_api_token = var.cloudflare_api_token
+  letsencrypt_email    = var.letsencrypt_email
+
+  tags = local.common_tags
+
+  depends_on = [module.eks]
+}
 
 # External Secrets Operator Module
 # Manages secrets from AWS Secrets Manager

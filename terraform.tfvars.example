@@ -67,10 +67,18 @@ node_disk_size = 20
 # Domain and TLS Configuration
 # ============================================================================
 
-# Domain name for self-signed TLS certificate
+# Domain name for TLS certificates managed by cert-manager with Cloudflare DNS-01
 domain_name = "thebrainsurf.site"
 
-# TLS certificates are self-signed - run ./scripts/gen-cert.sh to generate
+# TLS certificates are automatically managed by cert-manager using Let's Encrypt
+# Cloudflare API token is required for DNS-01 challenge (stored as Kubernetes secret)
+
+# ============================================================================
+# Nginx Ingress Controller Configuration
+# ============================================================================
+
+# Number of Nginx Ingress Controller replicas for high availability
+nginx_replica_count = 2
 
 # ============================================================================
 # Backend Configuration

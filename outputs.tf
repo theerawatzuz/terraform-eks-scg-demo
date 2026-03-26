@@ -88,17 +88,50 @@ output "cluster_access_instructions" {
 }
 
 # ============================================================================
-# AWS Load Balancer Controller Information
+# Nginx Ingress Controller Information
 # ============================================================================
 
-output "alb_controller_iam_role_arn" {
-  description = "ARN of the IAM role for AWS Load Balancer Controller"
-  value       = module.aws_lb_controller.iam_role_arn
+output "nginx_ingress_namespace" {
+  description = "Namespace where Nginx Ingress Controller is deployed"
+  value       = module.nginx_ingress.namespace
 }
 
-output "alb_controller_service_account" {
-  description = "Kubernetes service account for AWS Load Balancer Controller"
-  value       = "${module.aws_lb_controller.service_account_namespace}/${module.aws_lb_controller.service_account_name}"
+output "nginx_ingress_class_name" {
+  description = "Ingress class name for Nginx Ingress Controller"
+  value       = module.nginx_ingress.ingress_class_name
+}
+
+output "nginx_alb_dns_instructions" {
+  description = "Instructions to get ALB DNS name created by Nginx LoadBalancer service"
+  value       = <<-EOT
+    To get the ALB DNS name created by Nginx Ingress Controller:
+    
+    kubectl get svc -n ingress-nginx ingress-nginx-controller -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'
+    
+    Then create a CNAME record in Cloudflare:
+    - Name: *.${var.domain_name} (or specific subdomain)
+    - Target: <ALB DNS name from above>
+    - Proxy status: Proxied or DNS only (both work as TLS terminates at Nginx)
+  EOT
+}
+
+# ============================================================================
+# cert-manager Information
+# ============================================================================
+
+output "cert_manager_namespace" {
+  description = "Namespace where cert-manager is deployed"
+  value       = module.cert_manager.namespace
+}
+
+output "cert_manager_setup_instructions" {
+  description = "Instructions for completing cert-manager setup"
+  value       = module.cert_manager.setup_instructions
+}
+
+output "clusterissuer_ready" {
+  description = "Whether ClusterIssuer is ready to use"
+  value       = module.cert_manager.clusterissuer_created
 }
 
 # ============================================================================
@@ -111,21 +144,21 @@ output "domain_name" {
 }
 
 output "tls_setup_instructions" {
-  description = "Instructions for applying self-signed TLS certificate"
+  description = "Instructions for TLS certificate setup with cert-manager"
   value       = <<-EOT
-    Self-Signed TLS Certificate Setup:
+    TLS Certificate Setup with cert-manager:
 
-    1. Generate the certificate:
-       ./scripts/gen-cert.sh
+    1. Get the ALB DNS name:
+       kubectl get svc -n ingress-nginx ingress-nginx-controller -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'
 
-    2. Apply the TLS secret to Kubernetes:
-       kubectl apply -f tls-secret.yaml
+    2. Create CNAME record in Cloudflare pointing *.${var.domain_name} to the ALB DNS name
 
-    3. Get the ALB DNS name after deploying an Ingress:
-       kubectl get ingress <ingress-name> -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'
+    3. Apply ClusterIssuer for Let's Encrypt (see kubernetes/apps/cert-manager/clusterissuer.yaml)
 
-    4. Create a CNAME record in Cloudflare pointing *.${var.domain_name} to the ALB DNS name
-       (Proxy status: DNS only)
+    4. Create Ingress resources with cert-manager annotation:
+       cert-manager.io/cluster-issuer: "letsencrypt-prod"
+       
+    5. cert-manager will automatically request and manage TLS certificates using Cloudflare DNS-01 challenge
   EOT
 }
 
