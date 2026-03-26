@@ -10,10 +10,42 @@ data:
     import json
     import logging
     from datetime import datetime
+    import requests
 
     app = Flask(__name__)
     logging.basicConfig(level=logging.INFO)
     logger = logging.getLogger(__name__)
+
+    # Discord webhook URL
+    DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1486694466436993044/WorvOSDMnUojPJ4XjRfHB6iwemfniQ__vlFoCt6LYlwjDEtpEXTNFOwBuBXfXoW9cJN7"
+
+    def send_to_discord(message, severity='info'):
+        """Send alert to Discord"""
+        try:
+            # Discord color codes
+            colors = {
+                'critical': 15158332,  # Red
+                'warning': 16776960,   # Yellow
+                'info': 3447003,       # Blue
+                'resolved': 3066993    # Green
+            }
+            
+            embed = {
+                "embeds": [{
+                    "title": "🔔 Prometheus Alert",
+                    "description": message,
+                    "color": colors.get(severity, colors['info']),
+                    "timestamp": datetime.utcnow().isoformat()
+                }]
+            }
+            
+            response = requests.post(DISCORD_WEBHOOK_URL, json=embed, timeout=10)
+            response.raise_for_status()
+            logger.info(f"✅ Sent alert to Discord: {response.status_code}")
+            return True
+        except Exception as e:
+            logger.error(f"❌ Failed to send to Discord: {str(e)}")
+            return False
 
     def format_alert_message(alert):
         """Format alert for better readability"""
@@ -44,7 +76,7 @@ data:
         if 'namespace' in labels:
             message += f"\nNamespace: {labels['namespace']}"
             
-        return message
+        return message, severity
 
     @app.route('/webhook', methods=['POST'])
     @app.route('/webhook/<severity>', methods=['POST'])
@@ -52,22 +84,22 @@ data:
         """Receive Alertmanager webhook"""
         try:
             data = request.json
-            logger.info(f"Received webhook ({severity}): {json.dumps(data, indent=2)}")
+            logger.info(f"📨 Received webhook ({severity}): {json.dumps(data, indent=2)}")
             
             alerts = data.get('alerts', [])
             for alert in alerts:
-                message = format_alert_message(alert)
+                message, alert_severity = format_alert_message(alert)
                 logger.info(f"\n{'='*60}\n{message}\n{'='*60}")
                 
-                # TODO: Send to Slack, Discord, Teams, etc.
-                # Example:
-                # send_to_slack(message)
-                # send_to_discord(message)
+                # Send to Discord
+                status = alert.get('status', 'unknown')
+                discord_severity = 'resolved' if status == 'resolved' else alert_severity
+                send_to_discord(message, discord_severity)
                 
             return jsonify({'status': 'success', 'received': len(alerts)}), 200
             
         except Exception as e:
-            logger.error(f"Error processing webhook: {str(e)}")
+            logger.error(f"❌ Error processing webhook: {str(e)}")
             return jsonify({'status': 'error', 'message': str(e)}), 500
 
     @app.route('/health', methods=['GET'])
