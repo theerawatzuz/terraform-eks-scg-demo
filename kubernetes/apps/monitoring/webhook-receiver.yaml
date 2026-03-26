@@ -87,6 +87,8 @@ data:
             logger.info(f"📨 Received webhook ({severity}): {json.dumps(data, indent=2)}")
             
             alerts = data.get('alerts', [])
+            logger.info(f"🔍 Processing {len(alerts)} alerts")
+            
             for alert in alerts:
                 message, alert_severity = format_alert_message(alert)
                 logger.info(f"\n{'='*60}\n{message}\n{'='*60}")
@@ -94,7 +96,9 @@ data:
                 # Send to Discord
                 status = alert.get('status', 'unknown')
                 discord_severity = 'resolved' if status == 'resolved' else alert_severity
-                send_to_discord(message, discord_severity)
+                logger.info(f"📤 Attempting to send to Discord (severity: {discord_severity})")
+                result = send_to_discord(message, discord_severity)
+                logger.info(f"📬 Discord send result: {result}")
                 
             return jsonify({'status': 'success', 'received': len(alerts)}), 200
             

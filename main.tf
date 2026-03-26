@@ -223,3 +223,18 @@ module "argocd_image_updater" {
 
   depends_on = [module.eks]
 }
+
+# AWS Load Balancer Controller Module
+# Manages ALB/NLB for Kubernetes Ingress resources
+module "aws_lb_controller" {
+  source = "./modules/aws-lb-controller"
+
+  cluster_name            = module.eks.cluster_name
+  cluster_oidc_issuer_url = module.eks.cluster_oidc_issuer_url
+  oidc_provider_arn       = module.eks.oidc_provider_arn
+  vpc_id                  = module.vpc.vpc_id
+
+  tags = local.common_tags
+
+  depends_on = [module.eks]
+}

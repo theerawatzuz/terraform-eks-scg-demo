@@ -54,7 +54,15 @@ Prometheus Alertmanager configuration for Weather Map application with webhook n
 
 ## Webhook Receiver
 
-Simple Flask application that receives Alertmanager webhooks and logs formatted alerts.
+Simple Flask application that receives Alertmanager webhooks and sends formatted alerts to Discord.
+
+### Status
+
+✅ **Discord Integration Active**
+
+- Webhook URL: `https://discord.com/api/webhooks/1486694466436993044/WorvOSDMnUojPJ4XjRfHB6iwemfniQ__vlFoCt6LYlwjDEtpEXTNFOwBuBXfXoW9cJN7`
+- Status: Working (HTTP 204 responses)
+- Alerts are automatically sent to Discord with color-coded embeds
 
 ### Endpoints
 
