@@ -18,9 +18,9 @@ spec:
           image: 030635936907.dkr.ecr.ap-southeast-1.amazonaws.com/weather-map-frontend:latest
           ports:
             - containerPort: 80
-          env:
-            - name: REACT_APP_API_URL
-              value: "https://weather-api.thebrainsurf.site"
+          envFrom:
+            - secretRef:
+                name: weather-map-frontend-secrets
           resources:
             requests:
               cpu: 50m
