@@ -1,0 +1,110 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: weather-map-alerts
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+spec:
+  groups:
+    - name: weather-map
+      interval: 30s
+      rules:
+        # Pod Crash Alert
+        - alert: WeatherMapPodCrashing
+          expr: |
+            rate(kube_pod_container_status_restarts_total{namespace="weather-map"}[5m]) > 0
+          for: 1m
+          labels:
+            severity: critical
+            component: weather-map
+          annotations:
+            summary: "Pod {{ $labels.pod }} is crash looping"
+            description: "Pod {{ $labels.pod }} in namespace {{ $labels.namespace }} has restarted {{ $value }} times in the last 5 minutes"
+
+        # High CPU Alert
+        - alert: WeatherMapHighCPU
+          expr: |
+            sum(rate(container_cpu_usage_seconds_total{namespace="weather-map",container!=""}[5m])) by (pod) 
+            / sum(container_spec_cpu_quota{namespace="weather-map",container!=""}/container_spec_cpu_period{namespace="weather-map",container!=""}) by (pod) > 0.8
+          for: 5m
+          labels:
+            severity: warning
+            component: weather-map
+          annotations:
+            summary: "High CPU usage on {{ $labels.pod }}"
+            description: "Pod {{ $labels.pod }} is using {{ $value | humanizePercentage }} of CPU limit"
+
+        # High Memory Alert
+        - alert: WeatherMapHighMemory
+          expr: |
+            sum(container_memory_working_set_bytes{namespace="weather-map",container!=""}) by (pod)
+            / sum(container_spec_memory_limit_bytes{namespace="weather-map",container!=""}) by (pod) > 0.8
+          for: 5m
+          labels:
+            severity: warning
+            component: weather-map
+          annotations:
+            summary: "High memory usage on {{ $labels.pod }}"
+            description: "Pod {{ $labels.pod }} is using {{ $value | humanizePercentage }} of memory limit"
+
+        # Pod Not Ready
+        - alert: WeatherMapPodNotReady
+          expr: |
+            kube_pod_status_phase{namespace="weather-map",phase!~"Running|Succeeded"} > 0
+          for: 5m
+          labels:
+            severity: warning
+            component: weather-map
+          annotations:
+            summary: "Pod {{ $labels.pod }} is not ready"
+            description: "Pod {{ $labels.pod }} in namespace {{ $labels.namespace }} has been in {{ $labels.phase }} state for more than 5 minutes"
+
+        # HPA Scaling Event
+        - alert: WeatherMapHPAScaling
+          expr: |
+            abs(delta(kube_horizontalpodautoscaler_status_current_replicas{namespace="weather-map"}[2m])) > 0
+          labels:
+            severity: info
+            component: weather-map
+          annotations:
+            summary: "HPA {{ $labels.horizontalpodautoscaler }} scaled"
+            description: "HPA {{ $labels.horizontalpodautoscaler }} current replicas: {{ $value }}"
+
+        # HPA Max Replicas Reached
+        - alert: WeatherMapHPAMaxReplicas
+          expr: |
+            kube_horizontalpodautoscaler_status_current_replicas{namespace="weather-map"}
+            >= kube_horizontalpodautoscaler_spec_max_replicas{namespace="weather-map"}
+          for: 5m
+          labels:
+            severity: warning
+            component: weather-map
+          annotations:
+            summary: "HPA {{ $labels.horizontalpodautoscaler }} reached max replicas"
+            description: "HPA {{ $labels.horizontalpodautoscaler }} has reached maximum replicas ({{ $value }}). Consider increasing max replicas or optimizing application."
+
+        # Weather API High Error Rate
+        - alert: WeatherAPIHighErrorRate
+          expr: |
+            rate(weather_api_calls_total{status="error"}[5m]) 
+            / rate(weather_api_calls_total[5m]) > 0.1
+          for: 2m
+          labels:
+            severity: warning
+            component: weather-map
+          annotations:
+            summary: "High error rate on Weather API calls"
+            description: "Weather API error rate is {{ $value | humanizePercentage }} over the last 5 minutes"
+
+        # HTTP 5xx Error Rate
+        - alert: WeatherMapHigh5xxRate
+          expr: |
+            rate(http_requests_total{namespace="weather-map",status=~"5.."}[5m]) > 0.05
+          for: 2m
+          labels:
+            severity: critical
+            component: weather-map
+          annotations:
+            summary: "High 5xx error rate"
+            description: "{{ $labels.method }} {{ $labels.route }} is returning 5xx errors at {{ $value }} req/s"

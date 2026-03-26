@@ -1,0 +1,149 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: webhook-receiver-script
+  namespace: monitoring
+data:
+  webhook-receiver.py: |
+    #!/usr/bin/env python3
+    from flask import Flask, request, jsonify
+    import json
+    import logging
+    from datetime import datetime
+
+    app = Flask(__name__)
+    logging.basicConfig(level=logging.INFO)
+    logger = logging.getLogger(__name__)
+
+    def format_alert_message(alert):
+        """Format alert for better readability"""
+        status = alert.get('status', 'unknown')
+        labels = alert.get('labels', {})
+        annotations = alert.get('annotations', {})
+        
+        emoji = {
+            'firing': '🔥',
+            'resolved': '✅',
+            'critical': '🚨',
+            'warning': '⚠️',
+            'info': 'ℹ️'
+        }
+        
+        severity = labels.get('severity', 'info')
+        icon = emoji.get(severity, emoji.get(status, '📢'))
+        
+        message = f"{icon} **{labels.get('alertname', 'Unknown Alert')}**\n"
+        message += f"Status: {status.upper()}\n"
+        message += f"Severity: {severity.upper()}\n"
+        message += f"Component: {labels.get('component', 'N/A')}\n"
+        message += f"\n{annotations.get('summary', 'No summary')}\n"
+        message += f"{annotations.get('description', 'No description')}\n"
+        
+        if 'pod' in labels:
+            message += f"\nPod: {labels['pod']}"
+        if 'namespace' in labels:
+            message += f"\nNamespace: {labels['namespace']}"
+            
+        return message
+
+    @app.route('/webhook', methods=['POST'])
+    @app.route('/webhook/<severity>', methods=['POST'])
+    def webhook(severity='default'):
+        """Receive Alertmanager webhook"""
+        try:
+            data = request.json
+            logger.info(f"Received webhook ({severity}): {json.dumps(data, indent=2)}")
+            
+            alerts = data.get('alerts', [])
+            for alert in alerts:
+                message = format_alert_message(alert)
+                logger.info(f"\n{'='*60}\n{message}\n{'='*60}")
+                
+                # TODO: Send to Slack, Discord, Teams, etc.
+                # Example:
+                # send_to_slack(message)
+                # send_to_discord(message)
+                
+            return jsonify({'status': 'success', 'received': len(alerts)}), 200
+            
+        except Exception as e:
+            logger.error(f"Error processing webhook: {str(e)}")
+            return jsonify({'status': 'error', 'message': str(e)}), 500
+
+    @app.route('/health', methods=['GET'])
+    def health():
+        return jsonify({'status': 'healthy'}), 200
+
+    if __name__ == '__main__':
+        app.run(host='0.0.0.0', port=8080)
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: webhook-receiver
+  namespace: monitoring
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: webhook-receiver
+  template:
+    metadata:
+      labels:
+        app: webhook-receiver
+    spec:
+      containers:
+        - name: webhook-receiver
+          image: python:3.11-slim
+          command:
+            - /bin/bash
+            - -c
+            - |
+              pip install flask gunicorn
+              gunicorn -w 2 -b 0.0.0.0:8080 webhook-receiver:app
+          ports:
+            - containerPort: 8080
+          volumeMounts:
+            - name: script
+              mountPath: /app
+          workingDir: /app
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 5
+      volumes:
+        - name: script
+          configMap:
+            name: webhook-receiver-script
+            defaultMode: 0755
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: webhook-receiver
+  namespace: monitoring
+spec:
+  selector:
+    app: webhook-receiver
+  ports:
+    - protocol: TCP
+      port: 8080
+      targetPort: 8080
+  type: ClusterIP
