@@ -4,7 +4,7 @@ metadata:
   name: weather-map-frontend
   namespace: weather-map
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
       app: weather-map-frontend
