@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: frontend-runtime-config
+  namespace: weather-map
+data:
+  config.js: |
+    window.ENV = {
+      API_URL: 'https://weather-api.thebrainsurf.site'
+    };

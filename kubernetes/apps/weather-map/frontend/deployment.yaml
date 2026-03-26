@@ -18,6 +18,9 @@ spec:
           image: 208107894265.dkr.ecr.ap-southeast-1.amazonaws.com/weather-map-frontend:prod-20260326-135810
           ports:
             - containerPort: 80
+          env:
+            - name: VITE_API_URL
+              value: "https://weather-api.thebrainsurf.site"
           envFrom:
             - secretRef:
                 name: weather-map-frontend-secrets
