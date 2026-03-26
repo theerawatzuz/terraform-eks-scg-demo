@@ -13,9 +13,10 @@ spec:
       labels:
         app: weather-map-frontend
     spec:
+      serviceAccountName: default
       containers:
         - name: frontend
-          image: 208107894265.dkr.ecr.ap-southeast-1.amazonaws.com/weather-map-frontend:prod-20260326-143941
+          image: 030635936907.dkr.ecr.ap-southeast-1.amazonaws.com/weather-map-frontend:prod-20260326-143941
           ports:
             - containerPort: 80
           env:

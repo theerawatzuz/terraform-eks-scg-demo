@@ -20,7 +20,7 @@ spec:
     spec:
       containers:
         - name: backend
-          image: 208107894265.dkr.ecr.ap-southeast-1.amazonaws.com/weather-map-backend:prod-20260326-143940
+          image: 030635936907.dkr.ecr.ap-southeast-1.amazonaws.com/weather-map-backend:prod-20260326-143940
           ports:
             - containerPort: 3001
           envFrom:

@@ -8,7 +8,3 @@ resources:
   - hpa.yaml
   - external-secret.yaml
   - servicemonitor.yaml
-
-images:
-  - name: 030635936907.dkr.ecr.ap-southeast-1.amazonaws.com/weather-map-backend
-    newTag: latest

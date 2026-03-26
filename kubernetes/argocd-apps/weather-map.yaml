@@ -13,9 +13,6 @@ spec:
     repoURL: https://github.com/theerawatzuz/terraform-eks-scg-demo.git
     targetRevision: main
     path: kubernetes/apps/weather-map/backend
-    kustomize:
-      images:
-        - 030635936907.dkr.ecr.ap-southeast-1.amazonaws.com/weather-map-backend:latest
   destination:
     server: https://kubernetes.default.svc
     namespace: weather-map
@@ -42,9 +39,6 @@ spec:
     repoURL: https://github.com/theerawatzuz/terraform-eks-scg-demo.git
     targetRevision: main
     path: kubernetes/apps/weather-map/frontend
-    kustomize:
-      images:
-        - 030635936907.dkr.ecr.ap-southeast-1.amazonaws.com/weather-map-frontend:latest
   destination:
     server: https://kubernetes.default.svc
     namespace: weather-map
