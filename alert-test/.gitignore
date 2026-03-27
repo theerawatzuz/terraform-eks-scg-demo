@@ -1,0 +1,6 @@
+# Test results
+results/
+*.log
+
+# k6 outputs
+summary.json
